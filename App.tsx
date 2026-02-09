@@ -9,7 +9,8 @@ import { generateAtlasResponseStream, analyzeGithubRepo } from './services/gemin
 
 /**
  * Maps a natural language user query to a sequence of specialized agents based on defined protocols.
- * Protocols:
+ * 
+ * Protocols enforced:
  * - Code Generation: Architect -> Generator -> Security
  * - Refactoring: Explorer -> Refactorer -> Architect
  * - Architectural Audit: Explorer -> Architect -> Explainer
@@ -18,31 +19,35 @@ import { generateAtlasResponseStream, analyzeGithubRepo } from './services/gemin
 const getAgentWorkflow = (query: string): AgentType[] => {
   const normalizedQuery = query.toLowerCase();
   
-  // Define agent pipeline logic based on intent triggers
   const intentMap: Array<{ triggers: string[], workflow: AgentType[] }> = [
     {
-      // Protocol: Architect -> Generator -> Security
-      triggers: ['generate', 'create', 'build', 'synthesize', 'write', 'implement', 'setup', 'new module'],
+      // PROTOCOL: Synthesis (Generation)
+      // Logic: Design the structure, generate the implementation, verify security boundaries.
+      triggers: ['generate', 'create', 'build', 'synthesize', 'write', 'implement', 'setup', 'new module', 'add feature'],
       workflow: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY]
     },
     {
-      // Protocol: Explorer -> Refactorer -> Architect
-      triggers: ['refactor', 'optimize', 'improve', 'clean', 'simplify', 'readability', 'restructure'],
+      // PROTOCOL: Structural Refinement (Refactoring)
+      // Logic: Locate code, apply structural improvements, verify architectural alignment.
+      triggers: ['refactor', 'optimize', 'improve', 'clean', 'simplify', 'readability', 'restructure', 'dry'],
       workflow: [AgentType.EXPLORER, AgentType.REFACTORER, AgentType.ARCHITECT]
     },
     {
-      // Protocol: Explorer -> ChangeImpact -> Security
-      triggers: ['impact', 'change', 'blast radius', 'predict', 'consequence'],
+      // PROTOCOL: Predictive Analysis (Impact)
+      // Logic: Scan repo, calculate blast radius, audit security implications.
+      triggers: ['impact', 'change', 'blast radius', 'predict', 'consequence', 'modify', 'break', 'risk'],
       workflow: [AgentType.EXPLORER, AgentType.CHANGE_IMPACT, AgentType.SECURITY]
     },
     {
-      // Protocol: Explorer -> Architect -> Explainer
-      triggers: ['architecture', 'structure', 'overview', 'audit', 'design', 'layers'],
+      // PROTOCOL: Architectural Audit
+      // Logic: Map file system, identify patterns, explain layers and flows.
+      triggers: ['architecture', 'structure', 'overview', 'audit', 'design', 'layers', 'pattern', 'diagram', 'flowchart'],
       workflow: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER]
     },
     {
-      // Simple Explanation: Explorer -> Explainer
-      triggers: ['explain', 'describe', 'what is', 'how does', 'tell me about'],
+      // PROTOCOL: Basic Knowledge Retrieval
+      // Logic: Find the code and explain it.
+      triggers: ['explain', 'describe', 'what is', 'how does', 'tell me about', 'find', 'locate'],
       workflow: [AgentType.EXPLORER, AgentType.EXPLAINER]
     }
   ];
@@ -51,7 +56,7 @@ const getAgentWorkflow = (query: string): AgentType[] => {
     if (triggers.some(t => normalizedQuery.includes(t))) return workflow;
   }
   
-  // Default fallback to basic exploration
+  // Default fallback to general discovery
   return [AgentType.EXPLORER, AgentType.EXPLAINER];
 };
 
@@ -92,14 +97,14 @@ const App: React.FC = () => {
       activeAgents: [AgentType.ATLAS]
     }));
 
-    // Visually cycle through agents based on the determined workflow
+    // Visually sequence agent activation to reflect the pipeline progress
     workflow.forEach((agent, index) => {
       setTimeout(() => {
         setState(prev => ({
           ...prev,
           activeAgents: Array.from(new Set([...prev.activeAgents, agent]))
         }));
-      }, (index + 1) * 700);
+      }, (index + 1) * 600);
     });
 
     const assistantId = (Date.now() + 1).toString();
@@ -116,13 +121,13 @@ const App: React.FC = () => {
       messages: [...prev.messages, assistantPlaceholder]
     }));
 
+    // Inject context based on current viewport and project structure
     const contextHeader = state.currentFile 
-      ? `Active File Context: ${state.currentFile.path}\nContent:\n${state.currentFile.content}\n\n`
+      ? `[CONTEXT] Active File: ${state.currentFile.path}\n[CONTENT]\n${state.currentFile.content}\n\n`
       : "";
     
-    // Provide general repo structure context for architecture queries
-    const repoContext = userInput.toLowerCase().match(/architecture|structure|overview|audit|design/)
-      ? `Full Project Structure:\n${JSON.stringify(state.repoStructure, (k, v) => k === 'content' ? undefined : v, 2)}\n\n`
+    const repoContext = userInput.toLowerCase().match(/architecture|structure|overview|audit|design|pattern/)
+      ? `[PROJECT STRUCTURE]\n${JSON.stringify(state.repoStructure, (k, v) => k === 'content' ? undefined : v, 2)}\n\n`
       : "";
 
     const conversationHistory = state.messages
@@ -145,6 +150,7 @@ const App: React.FC = () => {
       }
     );
 
+    // Reset thinking state upon completion
     setState(prev => ({
       ...prev,
       isThinking: false,
@@ -154,11 +160,9 @@ const App: React.FC = () => {
 
   /**
    * Handles the ingestion of a remote repository.
-   * Leverages Gemini to analyze the repository structure and architecture.
    */
   const handleImportRepo = async (url: string) => {
     setIsIngesting(true);
-    
     try {
       const analysis = await analyzeGithubRepo(url);
       
@@ -179,7 +183,7 @@ const App: React.FC = () => {
         }))
       };
 
-      const architectSummary = `### 🛰️ Repository Ingested: ${analysis.repoName}\n\n${analysis.summary}\n\n**Stack Identified:**\n${analysis.stack.map((s: string) => `- ${s}`).join('\n')}\n\n**Explorer Insights:**\nAtlas has identified the key entry points and mapped the first two levels of the repository structure. You can now explore the files in the sidebar and ask for specific module analysis.`;
+      const architectSummary = `### 🛰️ Repository Ingested: ${analysis.repoName}\n\n${analysis.summary}\n\n**Stack Identified:**\n${analysis.stack.map((s: string) => `- ${s}`).join('\n')}\n\n**Explorer Insights:**\nAtlas has identified the key entry points and mapped the first two levels of the repository structure.`;
 
       setState(prev => ({
         ...prev,
@@ -201,7 +205,7 @@ const App: React.FC = () => {
           role: 'assistant',
           agent: AgentType.ATLAS,
           timestamp: Date.now(),
-          content: `❌ **Ingestion Failed:** Could not analyze repository at ${url}. Please ensure the URL is valid and public.`
+          content: `❌ **Ingestion Failed:** Could not analyze repository at ${url}.`
         }]
       }));
     } finally {
@@ -213,28 +217,28 @@ const App: React.FC = () => {
   const handleFileSelect = (file: FileNode) => setState(prev => ({ ...prev, currentFile: file }));
 
   /**
-   * Specialized trigger for the Refactorer agent on the active file.
+   * Triggers the Refactorer protocol for the active file.
    */
   const triggerRefactor = () => {
     if (state.currentFile && !state.isThinking) {
-      handleSendMessage(`Refactor \`${state.currentFile.path}\` for optimized readability and structure. Identify specific anti-patterns, apply guard clauses, and decompose complex logic into extractable helper functions.`);
+      handleSendMessage(`Refactor the current file (${state.currentFile.path}) to optimize for readability and reduce complexity. Focus on applying guard clauses and decomposing long methods.`);
     }
   };
 
   /**
-   * Specialized trigger for the Generator agent via the synthesis modal.
+   * Triggers the Generator protocol via the synthesis modal.
    */
   const handleGeneratorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (generatorInput.trim()) {
-      handleSendMessage(`Synthesize New Module: ${generatorInput}. Please follow strict architectural protocols: define interfaces, implement the logic with production-ready patterns, and provide a comprehensive integration guide.`);
+      handleSendMessage(`Synthesize New Module: ${generatorInput}. Use strict architectural patterns and include an integration guide.`);
       setGeneratorInput("");
       setIsGeneratorOpen(false);
     }
   };
 
   const handleProjectOverview = () => {
-    handleSendMessage("Perform a deep architectural audit of the current project structure. Identify primary layers, design patterns, and critical data flow paths.");
+    handleSendMessage("Perform a deep architectural audit of the project structure. Identify design patterns and primary data flows.");
   };
 
   return (
@@ -256,7 +260,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col min-w-0 bg-[#0f172a] selection:bg-blue-500/30">
         <div className="flex-1 flex overflow-hidden relative">
-          {/* Generator Overlay */}
+          {/* Generator Modal */}
           {isGeneratorOpen && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 animate-in fade-in duration-300">
               <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-8 animate-in zoom-in-95 duration-200">
@@ -274,14 +278,14 @@ const App: React.FC = () => {
                       autoFocus
                       value={generatorInput}
                       onChange={(e) => setGeneratorInput(e.target.value)}
-                      placeholder="Describe the module, function, or service you need Atlas to build..."
+                      placeholder="Describe the module or service you need Atlas to build..."
                       className="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all resize-none shadow-inner"
                     />
                   </div>
                   <div className="flex items-center gap-4 bg-green-500/5 border border-green-500/10 rounded-xl p-4">
                     <span className="text-xl shrink-0">✨</span>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Atlas will apply architectural patterns, strict type safety, and provide a full integration guide for this module.
+                      Atlas will follow Architectural Protocols to produce production-ready, typed, and documented code.
                     </p>
                   </div>
                   <div className="flex justify-end gap-3 pt-2">
@@ -293,7 +297,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* Code Viewer */}
+          {/* Code Viewer Panel */}
           <div className="flex-1 flex flex-col border-r border-slate-800/50 relative">
             <header className="h-14 bg-slate-950/50 border-b border-slate-800 flex items-center px-6 justify-between shrink-0">
               <nav className="flex gap-6 h-full items-center">
@@ -348,13 +352,13 @@ const App: React.FC = () => {
                   </div>
                   <h3 className="text-slate-200 font-bold text-xl mb-3 tracking-tight">Code Intelligence Active</h3>
                   <p className="text-sm text-slate-500 leading-relaxed max-w-sm">
-                    Select a local file or <span className="text-blue-400 cursor-pointer font-bold hover:underline" onClick={() => setIsImportModalOpen(true)}>import a GitHub repository</span> to begin automated analysis, security scanning, and structural refactoring.
+                    Select a local file or <span className="text-blue-400 cursor-pointer font-bold hover:underline" onClick={() => setIsImportModalOpen(true)}>import a GitHub repository</span> to begin automated analysis and synthesis.
                   </p>
                 </div>
               )}
             </section>
 
-            {/* Prominent Generator FAB */}
+            {/* Synthesis FAB */}
             <button 
               onClick={() => setIsGeneratorOpen(true)}
               className="absolute bottom-8 right-8 z-40 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_50px_rgba(16,185,129,0.5)] hover:-translate-y-1 active:scale-95 transition-all group"
@@ -367,7 +371,7 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {/* Chat Panel */}
+          {/* Chat / Agent Intelligence Panel */}
           <div className="w-[480px] shrink-0">
             <ChatInterface 
               messages={state.messages} 
