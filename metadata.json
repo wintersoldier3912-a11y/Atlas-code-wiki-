@@ -1,0 +1,8 @@
+{
+  "name": "Atlas Code Wiki",
+  "description": "An advanced AI-powered codebase orchestration layer that manages specialist agents to explain, trace, and predict the impact of changes in software repositories.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
