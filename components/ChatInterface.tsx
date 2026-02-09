@@ -4,20 +4,28 @@ import { Message, AgentType } from '../types';
 import ReactMarkdown from 'react-markdown';
 import mermaid from 'mermaid';
 
-// Initialize mermaid with Atlas branding
+// Initialize mermaid with Atlas branding and optimized dark theme
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'dark',
+  theme: 'base',
   securityLevel: 'loose',
-  fontFamily: 'Fira Code',
+  fontFamily: 'Fira Code, monospace',
   themeVariables: {
     darkMode: true,
+    background: 'transparent',
+    mainBkg: '#0f172a',
+    nodeBorder: '#334155',
+    clusterBkg: '#1e293b',
+    clusterBorder: '#475569',
+    lineColor: '#64748b',
+    fontFamily: 'Fira Code',
+    fontSize: '12px',
     primaryColor: '#3b82f6',
-    primaryTextColor: '#fff',
-    primaryBorderColor: '#1d4ed8',
-    lineColor: '#475569',
+    primaryTextColor: '#f8fafc',
+    primaryBorderColor: '#2563eb',
     secondaryColor: '#10b981',
     tertiaryColor: '#f59e0b',
+    edgeLabelBackground: '#0f172a',
   }
 });
 
@@ -26,57 +34,142 @@ interface MermaidProps {
 }
 
 /**
- * A dedicated component to render Mermaid diagrams securely and responsively.
+ * Enhanced component to render Mermaid diagrams with zoom-to-fullscreen and pan support.
  */
 const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
-  const id = useId().replace(/:/g, ''); // Mermaid IDs shouldn't have colons
+  const [isLoading, setIsLoading] = useState(true);
+  const id = useId().replace(/:/g, ''); 
 
   useEffect(() => {
+    let isMounted = true;
     const renderChart = async () => {
+      if (!chart.trim()) return;
+      setIsLoading(true);
       try {
-        const { svg } = await mermaid.render(`mermaid-${id}`, chart);
-        setSvg(svg);
-        setError(null);
+        // Using a unique ID per render to prevent conflicts
+        const { svg: renderedSvg } = await mermaid.render(`mermaid-${id}-${Math.random().toString(36).substr(2, 9)}`, chart);
+        if (isMounted) {
+          setSvg(renderedSvg);
+          setError(null);
+        }
       } catch (err) {
-        console.error('Mermaid rendering failed:', err);
-        setError('Failed to render architectural diagram.');
+        if (isMounted) {
+          console.error('Mermaid rendering failed:', err);
+          setError('Syntax error in architectural diagram.');
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
     renderChart();
+    return () => { isMounted = false; };
   }, [chart, id]);
 
+  const downloadSvg = () => {
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `atlas-architecture-${id}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (error) {
-    return <div className="p-3 bg-red-900/20 border border-red-500/30 rounded text-red-400 text-[10px] mono">{error}</div>;
+    return (
+      <div className="my-4 p-4 bg-red-900/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+        <span className="text-lg">⚠️</span>
+        <div>
+          <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-1">Rendering Error</p>
+          <p className="text-xs text-red-500/80 mono break-all">{error}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
-      <div 
-        className="my-4 bg-slate-950/50 p-4 border border-slate-800 rounded-xl cursor-zoom-in group relative overflow-hidden transition-all hover:border-blue-500/30"
-        onClick={() => setIsZoomed(true)}
-      >
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 p-1.5 rounded text-[10px] text-blue-400 font-bold uppercase tracking-widest pointer-events-none">
-          Click to Zoom
-        </div>
+      <div className="group relative my-6">
         <div 
-          className="flex justify-center"
-          dangerouslySetInnerHTML={{ __html: svg }} 
-        />
+          className={`bg-slate-950/40 border border-slate-800/50 rounded-2xl p-6 cursor-zoom-in transition-all hover:border-blue-500/40 hover:bg-slate-950/60 overflow-hidden min-h-[100px] flex items-center justify-center ${isLoading ? 'animate-pulse' : ''}`}
+          onClick={() => !isLoading && setIsZoomed(true)}
+        >
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-5 h-5 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+              <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Synthesizing Chart...</span>
+            </div>
+          ) : (
+            <div 
+              className="w-full flex justify-center [&>svg]:max-w-full [&>svg]:h-auto transition-opacity duration-500 opacity-100"
+              dangerouslySetInnerHTML={{ __html: svg }} 
+            />
+          )}
+        </div>
+        
+        {!isLoading && (
+          <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={(e) => { e.stopPropagation(); downloadSvg(); }}
+              className="p-2 bg-slate-900/90 border border-slate-700 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
+              title="Download SVG"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+            <button 
+              onClick={() => setIsZoomed(true)}
+              className="p-2 bg-blue-600/90 border border-blue-500 rounded-lg text-white hover:bg-blue-500 transition-all shadow-xl"
+              title="Full Screen View"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {isZoomed && (
         <div 
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-8 animate-in fade-in duration-300"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/98 backdrop-blur-2xl p-6 animate-in fade-in duration-300"
           onClick={() => setIsZoomed(false)}
         >
-          <button className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-slate-900 border border-slate-700 rounded-full text-white text-2xl hover:bg-slate-800 transition-colors">×</button>
+          <div className="absolute top-6 left-6 flex items-center gap-3">
+             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">🛰️</div>
+             <div>
+               <h4 className="text-sm font-bold text-white tracking-tight">Architectural Viewer</h4>
+               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Atlas Code Intelligence</p>
+             </div>
+          </div>
+
+          <div className="absolute top-6 right-6 flex items-center gap-3">
+            <button 
+              onClick={(e) => { e.stopPropagation(); downloadSvg(); }}
+              className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export SVG
+            </button>
+            <button 
+              className="w-10 h-10 flex items-center justify-center bg-slate-900 border border-slate-700 rounded-xl text-white text-xl hover:bg-slate-800 transition-colors"
+              onClick={() => setIsZoomed(false)}
+            >
+              ×
+            </button>
+          </div>
+
           <div 
-            className="w-full h-full flex items-center justify-center overflow-auto p-4 cursor-zoom-out max-w-7xl max-h-full"
-            dangerouslySetInnerHTML={{ __html: svg.replace(/max-width:.*?;/, 'max-width: 100%; height: auto;') }} 
+            className="w-full h-full flex items-center justify-center overflow-auto p-12 cursor-zoom-out [&>svg]:max-w-none [&>svg]:h-auto transition-transform duration-500"
+            onClick={(e) => e.stopPropagation()}
+            dangerouslySetInnerHTML={{ __html: svg.replace(/max-width:.*?;/, '') }} 
           />
+          
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] backdrop-blur-md">
+            Click background to exit • Scroll to Pan
+          </div>
         </div>
       )}
     </>
@@ -228,8 +321,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
                       const match = /language-(\w+)/.exec(className || '');
                       const codeValue = String(children).replace(/\n$/, '');
                       
-                      // Handle Mermaid Diagrams
-                      if (match && match[1] === 'mermaid') {
+                      // Handle Mermaid Diagrams explicitly
+                      if (match && (match[1] === 'mermaid' || match[1] === 'graph' || match[1] === 'flowchart')) {
                         return <Mermaid chart={codeValue} />;
                       }
 
