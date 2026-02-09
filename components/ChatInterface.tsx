@@ -1,7 +1,87 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { Message, AgentType } from '../types';
 import ReactMarkdown from 'react-markdown';
+import mermaid from 'mermaid';
+
+// Initialize mermaid with Atlas branding
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+  fontFamily: 'Fira Code',
+  themeVariables: {
+    darkMode: true,
+    primaryColor: '#3b82f6',
+    primaryTextColor: '#fff',
+    primaryBorderColor: '#1d4ed8',
+    lineColor: '#475569',
+    secondaryColor: '#10b981',
+    tertiaryColor: '#f59e0b',
+  }
+});
+
+interface MermaidProps {
+  chart: string;
+}
+
+/**
+ * A dedicated component to render Mermaid diagrams securely and responsively.
+ */
+const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const id = useId().replace(/:/g, ''); // Mermaid IDs shouldn't have colons
+
+  useEffect(() => {
+    const renderChart = async () => {
+      try {
+        const { svg } = await mermaid.render(`mermaid-${id}`, chart);
+        setSvg(svg);
+        setError(null);
+      } catch (err) {
+        console.error('Mermaid rendering failed:', err);
+        setError('Failed to render architectural diagram.');
+      }
+    };
+    renderChart();
+  }, [chart, id]);
+
+  if (error) {
+    return <div className="p-3 bg-red-900/20 border border-red-500/30 rounded text-red-400 text-[10px] mono">{error}</div>;
+  }
+
+  return (
+    <>
+      <div 
+        className="my-4 bg-slate-950/50 p-4 border border-slate-800 rounded-xl cursor-zoom-in group relative overflow-hidden transition-all hover:border-blue-500/30"
+        onClick={() => setIsZoomed(true)}
+      >
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 p-1.5 rounded text-[10px] text-blue-400 font-bold uppercase tracking-widest pointer-events-none">
+          Click to Zoom
+        </div>
+        <div 
+          className="flex justify-center"
+          dangerouslySetInnerHTML={{ __html: svg }} 
+        />
+      </div>
+
+      {isZoomed && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-8 animate-in fade-in duration-300"
+          onClick={() => setIsZoomed(false)}
+        >
+          <button className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-slate-900 border border-slate-700 rounded-full text-white text-2xl hover:bg-slate-800 transition-colors">×</button>
+          <div 
+            className="w-full h-full flex items-center justify-center overflow-auto p-4 cursor-zoom-out max-w-7xl max-h-full"
+            dangerouslySetInnerHTML={{ __html: svg.replace(/max-width:.*?;/, 'max-width: 100%; height: auto;') }} 
+          />
+        </div>
+      )}
+    </>
+  );
+};
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -9,12 +89,13 @@ interface ChatInterfaceProps {
   isThinking: boolean;
   activeAgents: AgentType[];
   hasActiveFile: boolean;
+  onOpenGenerator?: () => void;
 }
 
 /**
  * The primary chat interface component for interacting with the Atlas agents.
  */
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isThinking, activeAgents, hasActiveFile }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isThinking, activeAgents, hasActiveFile, onOpenGenerator }) => {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -111,7 +192,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
                )}
                
                <button 
-                onClick={() => onSendMessage("Generate a new service layer for handling complex data transformations with error recovery and logging.")}
+                onClick={() => onOpenGenerator?.()}
                 className="group text-[10px] bg-green-500/5 hover:bg-green-500/10 border border-green-500/20 p-3 rounded-lg text-left text-green-200 transition-all flex items-center gap-3"
                >
                  <span className="text-lg group-hover:scale-110 transition-transform">🏗️</span>
@@ -146,6 +227,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
                     code({node, inline, className, children, ...props}) {
                       const match = /language-(\w+)/.exec(className || '');
                       const codeValue = String(children).replace(/\n$/, '');
+                      
+                      // Handle Mermaid Diagrams
+                      if (match && match[1] === 'mermaid') {
+                        return <Mermaid chart={codeValue} />;
+                      }
+
                       return !inline ? (
                         <div className="relative group/code">
                           <button 
@@ -190,24 +277,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
 
       {/* Input */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent pt-10">
-        <form onSubmit={handleSubmit} className="relative group max-w-xl mx-auto">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
-          <div className="relative flex items-center bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-2xl">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Command the agents..."
-              className="flex-1 bg-transparent outline-none py-4 px-5 text-sm font-medium text-slate-200 placeholder:text-slate-600"
-              disabled={isThinking}
-            />
-            <button 
-              type="submit"
-              disabled={isThinking || !input.trim()}
-              className="mr-2 h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-800 text-white rounded-lg transition-all active:scale-95"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
+        <form onSubmit={handleSubmit} className="relative group max-w-xl mx-auto flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={onOpenGenerator}
+            className="h-14 w-14 flex items-center justify-center bg-slate-950 border border-slate-800 rounded-xl text-2xl hover:bg-green-600/10 hover:border-green-500/50 transition-all active:scale-95 shadow-xl group"
+            title="Open Synthesis Panel"
+          >
+            <span className="group-hover:rotate-12 transition-transform">🏗️</span>
+          </button>
+          
+          <div className="flex-1 relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
+            <div className="relative flex items-center bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-2xl h-14">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Command the agents..."
+                className="flex-1 bg-transparent outline-none py-4 px-5 text-sm font-medium text-slate-200 placeholder:text-slate-600"
+                disabled={isThinking}
+              />
+              <button 
+                type="submit"
+                disabled={isThinking || !input.trim()}
+                className="mr-2 h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-800 text-white rounded-lg transition-all active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
           </div>
         </form>
       </div>

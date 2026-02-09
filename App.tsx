@@ -236,26 +236,35 @@ const App: React.FC = () => {
         <div className="flex-1 flex overflow-hidden relative">
           {/* Generator Overlay */}
           {isGeneratorOpen && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
-              <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-green-600/20 text-green-400 rounded-lg flex items-center justify-center text-xl">🏗️</div>
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 animate-in fade-in duration-300">
+              <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-8 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-700 text-white rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-green-900/20">🏗️</div>
                   <div>
-                    <h3 className="font-bold text-slate-100">Generator Agent</h3>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Architectural Code Generation</p>
+                    <h3 className="text-xl font-bold text-slate-100">Generator Agent</h3>
+                    <p className="text-[10px] text-slate-500 uppercase font-black tracking-[0.2em]">Synthesis Engine</p>
                   </div>
                 </div>
-                <form onSubmit={handleGeneratorSubmit}>
-                  <textarea
-                    autoFocus
-                    value={generatorInput}
-                    onChange={(e) => setGeneratorInput(e.target.value)}
-                    placeholder="Describe the module..."
-                    className="w-full h-32 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 outline-none focus:border-blue-500 transition-colors resize-none mb-4"
-                  />
-                  <div className="flex justify-end gap-3">
-                    <button type="button" onClick={() => setIsGeneratorOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-200">Cancel</button>
-                    <button type="submit" disabled={!generatorInput.trim()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-lg">Generate Implementation</button>
+                <form onSubmit={handleGeneratorSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1">Synthesis Instructions</label>
+                    <textarea
+                      autoFocus
+                      value={generatorInput}
+                      onChange={(e) => setGeneratorInput(e.target.value)}
+                      placeholder="Describe the module, function, or service you need Atlas to build..."
+                      className="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all resize-none shadow-inner"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4 bg-green-500/5 border border-green-500/10 rounded-xl p-4">
+                    <span className="text-xl shrink-0">✨</span>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Atlas will apply architectural patterns, strict type safety, and provide a full integration guide for this module.
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button type="button" onClick={() => setIsGeneratorOpen(false)} className="px-6 py-3 text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest">Discard</button>
+                    <button type="submit" disabled={!generatorInput.trim()} className="px-8 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black transition-all shadow-xl shadow-green-900/20 active:scale-95 uppercase tracking-widest">Synthesize Code</button>
                   </div>
                 </form>
               </div>
@@ -263,8 +272,8 @@ const App: React.FC = () => {
           )}
 
           {/* Code Viewer */}
-          <div className="flex-1 flex flex-col border-r border-slate-800/50">
-            <header className="h-14 bg-slate-950/50 border-b border-slate-800 flex items-center px-6 justify-between">
+          <div className="flex-1 flex flex-col border-r border-slate-800/50 relative">
+            <header className="h-14 bg-slate-950/50 border-b border-slate-800 flex items-center px-6 justify-between shrink-0">
               <nav className="flex gap-6 h-full items-center">
                 <button className="text-[10px] font-black border-b-2 border-blue-500 h-full px-1 text-slate-200 uppercase tracking-widest">Editor</button>
                 <button className="text-[10px] font-black text-slate-500 hover:text-slate-300 transition-colors h-full px-1 uppercase tracking-widest">Analysis</button>
@@ -322,6 +331,18 @@ const App: React.FC = () => {
                 </div>
               )}
             </section>
+
+            {/* Prominent Generator FAB */}
+            <button 
+              onClick={() => setIsGeneratorOpen(true)}
+              className="absolute bottom-8 right-8 z-40 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_50px_rgba(16,185,129,0.5)] hover:-translate-y-1 active:scale-95 transition-all group"
+              title="Synthesize New Code"
+            >
+              <span className="group-hover:rotate-12 transition-transform">🏗️</span>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                 <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+              </div>
+            </button>
           </div>
 
           {/* Chat Panel */}
@@ -332,6 +353,7 @@ const App: React.FC = () => {
               isThinking={state.isThinking}
               activeAgents={state.activeAgents}
               hasActiveFile={!!state.currentFile}
+              onOpenGenerator={() => setIsGeneratorOpen(true)}
             />
           </div>
         </div>
