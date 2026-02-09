@@ -11,6 +11,24 @@ interface ChatInterfaceProps {
   hasActiveFile: boolean;
 }
 
+/**
+ * The primary chat interface component for interacting with the Atlas agents.
+ * 
+ * Features include:
+ * - Real-time agent activity visualization.
+ * - Markdown rendering for complex code outputs and documentation.
+ * - Context-aware quick actions (Refactor/Generate).
+ * - Automatic scrolling to latest messages.
+ * - One-click code copying for generated snippets.
+ *
+ * @component
+ * @param {Object} props
+ * @param {Message[]} props.messages - The conversation history.
+ * @param {(text: string) => void} props.onSendMessage - Callback for user message submission.
+ * @param {boolean} props.isThinking - Whether the orchestrator is currently processing.
+ * @param {AgentType[]} props.activeAgents - List of agents currently active in the sequence.
+ * @param {boolean} props.hasActiveFile - State flag to show file-specific quick actions.
+ */
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isThinking, activeAgents, hasActiveFile }) => {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,6 +39,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
     }
   }, [messages, isThinking]);
 
+  /**
+   * Handles the local input form submission and triggers the global message handler.
+   * @param {React.FormEvent} e
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isThinking) {
@@ -29,9 +51,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
     }
   };
 
+  /**
+   * Utility function to copy code snippet content to the system clipboard.
+   * @param {string} text - The raw code string to copy.
+   */
   const handleCopyCode = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Visual feedback could be added here
   };
 
   return (

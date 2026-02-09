@@ -5,7 +5,17 @@ import { SYSTEM_PROMPT } from "../constants";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * Streams a response from the Gemini 3 Pro model using multi-agent system instructions.
+ * Streams a multi-turn conversation response from the Gemini 3 Pro model.
+ * 
+ * This service applies the Atlas system instructions to ensure the model behaves
+ * as a multi-agent orchestrator. It handles history conversion to the format 
+ * required by the Google GenAI SDK and manages error states gracefully by 
+ * streaming a friendly error message back to the UI.
+ *
+ * @param {string} query - The current user prompt or command.
+ * @param {Array<{role: 'user' | 'assistant', content: string}>} history - Previous turns in the conversation.
+ * @param {(chunk: string) => void} onChunk - Callback function invoked for each piece of streamed text.
+ * @returns {Promise<string>} The full accumulated response string once streaming is complete.
  */
 export const generateAtlasResponseStream = async (
   query: string, 
