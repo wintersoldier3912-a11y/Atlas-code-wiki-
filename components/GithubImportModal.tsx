@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface GithubImportModalProps {
   isOpen: boolean;
@@ -13,6 +13,18 @@ interface GithubImportModalProps {
  */
 export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, onClose, onImport, isIngesting }) => {
   const [url, setUrl] = useState('');
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (isIngesting) {
+      const interval = setInterval(() => {
+        setStep(prev => (prev < 3 ? prev + 1 : prev));
+      }, 1500);
+      return () => clearInterval(interval);
+    } else {
+      setStep(0);
+    }
+  }, [isIngesting]);
 
   if (!isOpen) return null;
 
@@ -22,6 +34,13 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
       onImport(url.trim());
     }
   };
+
+  const ingestionSteps = [
+    "Explorer: Discovering file structure...",
+    "Explorer: Indexing source tree...",
+    "Architect: Analyzing project stack...",
+    "Architect: Synthesizing architecture overview..."
+  ];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6">
@@ -43,11 +62,15 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
                 <div className="w-20 h-20 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center text-2xl">🛰️</div>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-200">Atlas Agents are scanning the repository...</p>
-                <div className="flex gap-2 justify-center">
-                   <span className="text-[10px] px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full animate-pulse">Explorer Active</span>
-                   <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-500 rounded-full">Architect Pending</span>
+              <div className="space-y-4 w-full">
+                <p className="text-sm font-medium text-slate-200">Atlas Agents are collaborating...</p>
+                <div className="space-y-2">
+                  {ingestionSteps.map((s, i) => (
+                    <div key={i} className={`flex items-center gap-3 transition-opacity duration-300 ${i <= step ? 'opacity-100' : 'opacity-20'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${i < step ? 'bg-green-500' : i === step ? 'bg-blue-500 animate-pulse' : 'bg-slate-700'}`}></div>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{s}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -67,7 +90,7 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
               <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 flex gap-4">
                  <div className="text-xl">💡</div>
                  <p className="text-xs text-slate-400 leading-relaxed">
-                   Atlas will index the repository structure, analyze common architectural patterns, and prepare the Explorer agent for deep-context queries.
+                   Atlas will index the repository structure, analyze architectural patterns, and provide an initial overview using **Gemini Agent Orchestration**.
                  </p>
               </div>
               <div className="flex justify-end gap-4 pt-2">

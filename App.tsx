@@ -5,7 +5,7 @@ import { MOCK_REPO } from './constants';
 import { Sidebar } from './components/Sidebar';
 import { ChatInterface } from './components/ChatInterface';
 import { GithubImportModal } from './components/GithubImportModal';
-import { generateAtlasResponseStream } from './services/geminiService';
+import { generateAtlasResponseStream, analyzeGithubRepo } from './services/geminiService';
 
 /**
  * Maps a natural language user query to a sequence of specialized agents.
@@ -129,35 +129,32 @@ const App: React.FC = () => {
 
   /**
    * Handles the ingestion of a remote repository.
-   * Leverages Gemini to "imagine" or describe the repository structure if the URL is recognized.
+   * Leverages Gemini to analyze the repository structure and architecture.
    */
   const handleImportRepo = async (url: string) => {
     setIsIngesting(true);
     
-    // Simulate multi-agent discovery workflow
-    const prompt = `System Command: Ingest remote GitHub repository ${url}. 
-    As the Explorer and Architect agents, please describe the high-level directory structure, 
-    primary programming languages used, and the main entry points of this codebase. 
-    Respond with a JSON-like list of the most important files.`;
-
     try {
-      // In a real scenario, we might use a dedicated tool for this.
-      // Here, we'll use a timeout to simulate the "scan" and then add a special entry to the state.
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const analysis = await analyzeGithubRepo(url);
       
       const newRepoNode: FileNode = {
-        name: url.split('/').pop() || 'imported-repo',
+        name: analysis.repoName || url.split('/').pop(),
         path: url,
         type: 'directory',
-        children: [
-          { name: 'src', path: `${url}/src`, type: 'directory', children: [
-            { name: 'main.ts', path: `${url}/src/main.ts`, type: 'file', content: '// Entry point for the imported project' },
-            { name: 'utils.ts', path: `${url}/src/utils.ts`, type: 'file', content: '// Utility functions' }
-          ]},
-          { name: 'README.md', path: `${url}/README.md`, type: 'file', content: `# Discovered Repository\nSuccessfully indexed ${url}.\n\nAtlas has identified this as a high-priority project.` },
-          { name: 'package.json', path: `${url}/package.json`, type: 'file', content: '{\n  "name": "imported-project",\n  "version": "1.0.0"\n}' }
-        ]
+        children: analysis.structure.map((item: any) => ({
+          name: item.name,
+          path: item.path,
+          type: item.type as 'file' | 'directory',
+          children: item.children?.map((child: any) => ({
+            name: child.name,
+            path: child.path,
+            type: child.type as 'file' | 'directory',
+            content: child.type === 'file' ? `// Placeholder content for ${child.name}` : undefined
+          }))
+        }))
       };
+
+      const architectSummary = `### 🛰️ Repository Ingested: ${analysis.repoName}\n\n${analysis.summary}\n\n**Stack Identified:**\n${analysis.stack.map((s: string) => `- ${s}`).join('\n')}\n\n**Architecture Pattern:**\nPrimary structure appears to follow a modular design with key entry points identified in the explorer.`;
 
       setState(prev => ({
         ...prev,
@@ -165,13 +162,23 @@ const App: React.FC = () => {
         messages: [...prev.messages, {
           id: Date.now().toString(),
           role: 'assistant',
-          agent: AgentType.ATLAS,
+          agent: AgentType.ARCHITECT,
           timestamp: Date.now(),
-          content: `### 🛰️ Repository Ingested\nSuccessfully scanned and indexed **${url}**.\n\n**Discovered Stack:**\n- **Languages**: TypeScript, Markdown\n- **Architecture**: Modular Frontend/Service\n- **Health**: 98% (High code coverage detected)\n\nYou can now select files from this repository in the explorer for analysis.`
+          content: architectSummary
         }]
       }));
     } catch (err) {
       console.error(err);
+      setState(prev => ({
+        ...prev,
+        messages: [...prev.messages, {
+          id: Date.now().toString(),
+          role: 'assistant',
+          agent: AgentType.ATLAS,
+          timestamp: Date.now(),
+          content: `❌ **Ingestion Failed:** Could not analyze repository at ${url}. Please ensure the URL is valid and public.`
+        }]
+      })]
     } finally {
       setIsIngesting(false);
       setIsImportModalOpen(false);
@@ -182,14 +189,14 @@ const App: React.FC = () => {
 
   const triggerRefactor = () => {
     if (state.currentFile && !state.isThinking) {
-      handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure...`);
+      handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure. focusing on readability: improve variable names, simplify conditional logic (use guard clauses), identify methods to extract, and add descriptive comments.`);
     }
   };
 
   const handleGeneratorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (generatorInput.trim()) {
-      handleSendMessage(`Generator Agent Request: ${generatorInput}...`);
+      handleSendMessage(`Generator Agent Request: ${generatorInput}. Please generate a robust implementation following architectural patterns, including comprehensive docstrings, strict type safety, and clear integration steps.`);
       setGeneratorInput("");
       setIsGeneratorOpen(false);
     }

@@ -1,21 +1,11 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Streams a multi-turn conversation response from the Gemini 3 Pro model.
- * 
- * This service applies the Atlas system instructions to ensure the model behaves
- * as a multi-agent orchestrator. It handles history conversion to the format 
- * required by the Google GenAI SDK and manages error states gracefully by 
- * streaming a friendly error message back to the UI.
- *
- * @param {string} query - The current user prompt or command.
- * @param {Array<{role: 'user' | 'assistant', content: string}>} history - Previous turns in the conversation.
- * @param {(chunk: string) => void} onChunk - Callback function invoked for each piece of streamed text.
- * @returns {Promise<string>} The full accumulated response string once streaming is complete.
  */
 export const generateAtlasResponseStream = async (
   query: string, 
@@ -61,5 +51,69 @@ export const generateAtlasResponseStream = async (
     const friendlyError = `\n\n**Agent Error:** ${message}. Check your API quota or key validity.`;
     onChunk(friendlyError);
     return friendlyError;
+  }
+};
+
+/**
+ * Uses Gemini to analyze a GitHub repository URL and predict its structure and architecture.
+ * This returns a structured JSON object for the UI to consume.
+ */
+export const analyzeGithubRepo = async (repoUrl: string) => {
+  const prompt = `Analyze this GitHub repository URL: ${repoUrl}. 
+  Act as an Explorer and Architect agent. Provide a likely directory structure (top-level and 1-level deep) 
+  and a high-level architectural summary. 
+  
+  Focus on identifying:
+  - Main technology stack (languages/frameworks).
+  - Core directory structure.
+  - Primary architectural patterns (e.g., MVC, Layered, Microservices).
+  - Important entry points.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            repoName: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            stack: { type: Type.ARRAY, items: { type: Type.STRING } },
+            structure: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  type: { type: Type.STRING, description: 'file or directory' },
+                  path: { type: Type.STRING },
+                  children: { 
+                    type: Type.ARRAY, 
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        name: { type: Type.STRING },
+                        type: { type: Type.STRING },
+                        path: { type: Type.STRING }
+                      }
+                    }
+                  }
+                },
+                required: ['name', 'type', 'path']
+              }
+            }
+          },
+          required: ['repoName', 'summary', 'stack', 'structure']
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text || '{}');
+    return data;
+  } catch (error) {
+    console.error('[GeminiService] Repo Analysis Error:', error);
+    throw error;
   }
 };
