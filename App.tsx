@@ -7,7 +7,14 @@ import { ChatInterface } from './components/ChatInterface';
 import { generateAtlasResponseStream } from './services/geminiService';
 
 /**
- * Maps user query keywords to specific agent workflows.
+ * Maps a natural language user query to a sequence of specialized agents.
+ * 
+ * This function parses the user's input to determine the most appropriate
+ * multi-agent workflow. It uses keyword matching to trigger specific 
+ * expertise paths such as generation, refactoring, or security analysis.
+ *
+ * @param {string} query - The raw text input from the user.
+ * @returns {AgentType[]} An ordered array of AgentType representing the workflow sequence.
  */
 const getAgentWorkflow = (query: string): AgentType[] => {
   const normalizedQuery = query.toLowerCase();
@@ -25,7 +32,6 @@ const getAgentWorkflow = (query: string): AgentType[] => {
     change: [AgentType.CHANGE_IMPACT, AgentType.SECURITY, AgentType.ARCHITECT],
   };
 
-  // Return the first matching workflow or a default explorer/atlas sequence
   for (const [trigger, agents] of Object.entries(workflowDefinitions)) {
     if (normalizedQuery.includes(trigger)) return agents;
   }
@@ -33,6 +39,17 @@ const getAgentWorkflow = (query: string): AgentType[] => {
   return [AgentType.EXPLORER];
 };
 
+/**
+ * The main application component for the Atlas Code Wiki.
+ * 
+ * This component manages the global state including message history, 
+ * repository structure, active agents, and the currently selected file.
+ * It orchestrates the communication between the UI and the underlying
+ * multi-agent system powered by Gemini.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered Atlas Code Wiki application.
+ */
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     messages: [],
@@ -46,7 +63,13 @@ const App: React.FC = () => {
   const [generatorInput, setGeneratorInput] = useState("");
 
   /**
-   * Orchestrates the multi-agent response flow.
+   * Orchestrates the multi-agent response flow by processing user input.
+   * 
+   * It determines the workflow, updates the UI state to reflect agent activity,
+   * and streams the generated response from the Gemini API.
+   *
+   * @param {string} userInput - The query or command sent by the user.
+   * @returns {Promise<void>}
    */
   const handleSendMessage = useCallback(async (userInput: string) => {
     const userMessage: Message = {
@@ -65,7 +88,6 @@ const App: React.FC = () => {
       activeAgents: [AgentType.ATLAS]
     }));
 
-    // Simulate agent hand-offs for visual feedback
     workflow.forEach((agent, index) => {
       setTimeout(() => {
         setState(prev => ({
@@ -89,7 +111,6 @@ const App: React.FC = () => {
       messages: [...prev.messages, assistantPlaceholder]
     }));
 
-    // Construct context-aware prompt
     const contextHeader = state.currentFile 
       ? `Active File Context: ${state.currentFile.path}\nContent:\n${state.currentFile.content}\n\n`
       : "";
@@ -121,8 +142,18 @@ const App: React.FC = () => {
     }));
   }, [state.messages, state.currentFile]);
 
+  /**
+   * Updates the state with the newly selected file from the sidebar.
+   *
+   * @param {FileNode} file - The file node selected by the user.
+   */
   const handleFileSelect = (file: FileNode) => setState(prev => ({ ...prev, currentFile: file }));
 
+  /**
+   * Triggers a refactoring request for the currently active file.
+   * It specifically asks the Refactorer agent to target code smells like 
+   * deep nesting and primitive obsession.
+   */
   const triggerRefactor = () => {
     if (state.currentFile && !state.isThinking) {
       handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure. Please specifically identify and target the following code smells:
@@ -133,6 +164,11 @@ Ensure architectural patterns are respected and provide a before/after compariso
     }
   };
 
+  /**
+   * Handles the submission of the code generation modal.
+   *
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleGeneratorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (generatorInput.trim()) {
