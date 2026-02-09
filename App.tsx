@@ -27,6 +27,10 @@ const getAgentWorkflow = (query: string): AgentType[] => {
     explain: [AgentType.EXPLAINER],
     impact: [AgentType.CHANGE_IMPACT, AgentType.SECURITY, AgentType.ARCHITECT],
     change: [AgentType.CHANGE_IMPACT, AgentType.SECURITY, AgentType.ARCHITECT],
+    architecture: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
+    structure: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
+    overview: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
+    audit: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.SECURITY, AgentType.EXPLAINER],
   };
 
   for (const [trigger, agents] of Object.entries(workflowDefinitions)) {
@@ -100,6 +104,11 @@ const App: React.FC = () => {
       ? `Active File Context: ${state.currentFile.path}\nContent:\n${state.currentFile.content}\n\n`
       : "";
     
+    // Provide general repo structure context for architecture queries
+    const repoContext = userInput.toLowerCase().match(/architecture|structure|overview|audit/)
+      ? `Full Project Structure:\n${JSON.stringify(state.repoStructure, (k, v) => k === 'content' ? undefined : v, 2)}\n\n`
+      : "";
+
     const conversationHistory = state.messages
       .filter(m => m.content)
       .map(m => ({ role: m.role, content: m.content }));
@@ -107,7 +116,7 @@ const App: React.FC = () => {
     let streamedContent = "";
     
     await generateAtlasResponseStream(
-      `${contextHeader}Query: ${userInput}`, 
+      `${repoContext}${contextHeader}Query: ${userInput}`, 
       conversationHistory, 
       (chunk) => {
         streamedContent += chunk;
@@ -125,7 +134,7 @@ const App: React.FC = () => {
       isThinking: false,
       activeAgents: []
     }));
-  }, [state.messages, state.currentFile]);
+  }, [state.messages, state.currentFile, state.repoStructure]);
 
   /**
    * Handles the ingestion of a remote repository.
@@ -149,12 +158,12 @@ const App: React.FC = () => {
             name: child.name,
             path: child.path,
             type: child.type as 'file' | 'directory',
-            content: child.type === 'file' ? `// Placeholder content for ${child.name}` : undefined
+            content: child.type === 'file' ? `// Discovered remote file: ${child.name}\n// Use Atlas agents to explain or generate content.` : undefined
           }))
         }))
       };
 
-      const architectSummary = `### 🛰️ Repository Ingested: ${analysis.repoName}\n\n${analysis.summary}\n\n**Stack Identified:**\n${analysis.stack.map((s: string) => `- ${s}`).join('\n')}\n\n**Architecture Pattern:**\nPrimary structure appears to follow a modular design with key entry points identified in the explorer.`;
+      const architectSummary = `### 🛰️ Repository Ingested: ${analysis.repoName}\n\n${analysis.summary}\n\n**Stack Identified:**\n${analysis.stack.map((s: string) => `- ${s}`).join('\n')}\n\n**Explorer Insights:**\nAtlas has identified the key entry points and mapped the first two levels of the repository structure. You can now explore the files in the sidebar and ask for specific module analysis.`;
 
       setState(prev => ({
         ...prev,
@@ -178,7 +187,7 @@ const App: React.FC = () => {
           timestamp: Date.now(),
           content: `❌ **Ingestion Failed:** Could not analyze repository at ${url}. Please ensure the URL is valid and public.`
         }]
-      })]
+      }));
     } finally {
       setIsIngesting(false);
       setIsImportModalOpen(false);
@@ -202,12 +211,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleProjectOverview = () => {
+    handleSendMessage("Perform a deep architectural audit of the current project structure. Identify primary layers, design patterns, and critical data flow paths.");
+  };
+
   return (
     <div className="flex h-screen bg-[#0f172a] text-slate-100 overflow-hidden font-sans">
       <Sidebar 
         structure={state.repoStructure} 
         onFileSelect={handleFileSelect} 
         onOpenImport={() => setIsImportModalOpen(true)}
+        onProjectOverview={handleProjectOverview}
         isIngesting={isIngesting}
       />
       

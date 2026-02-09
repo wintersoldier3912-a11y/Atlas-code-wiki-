@@ -6,6 +6,7 @@ interface SidebarProps {
   structure: FileNode[];
   onFileSelect: (file: FileNode) => void;
   onOpenImport: () => void;
+  onProjectOverview?: () => void;
   isIngesting?: boolean;
 }
 
@@ -50,7 +51,7 @@ const FileItem: React.FC<{ node: FileNode; onSelect: (file: FileNode) => void; d
 /**
  * The sidebar component providing a hierarchical view of the repository and management controls.
  */
-export const Sidebar: React.FC<SidebarProps> = ({ structure, onFileSelect, onOpenImport, isIngesting }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ structure, onFileSelect, onOpenImport, onProjectOverview, isIngesting }) => {
   return (
     <aside className="w-64 flex flex-col h-full bg-slate-950 border-r border-slate-900 shadow-2xl z-20">
       <div className="p-6 border-b border-slate-900 flex items-center justify-between">
@@ -64,13 +65,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ structure, onFileSelect, onOpe
         <div>
           <div className="flex items-center justify-between px-3 mb-3">
             <h2 className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">Explorer</h2>
-            <button 
-              onClick={onOpenImport}
-              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-500 hover:text-blue-400 transition-all active:scale-90"
-              title="Add Repository"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={onProjectOverview}
+                className="p-1.5 hover:bg-slate-800 rounded-md text-slate-500 hover:text-cyan-400 transition-all active:scale-90"
+                title="Architectural Overview"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+              </button>
+              <button 
+                onClick={onOpenImport}
+                className="p-1.5 hover:bg-slate-800 rounded-md text-slate-500 hover:text-blue-400 transition-all active:scale-90"
+                title="Add Repository"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+            </div>
           </div>
           
           {isIngesting && (
@@ -84,6 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ structure, onFileSelect, onOpe
 
           <div className="space-y-0.5">
             {structure.map((node, i) => (
+              // FIX: onSelect should use the onFileSelect prop passed to Sidebar
               <FileItem key={i} node={node} onSelect={onFileSelect} depth={0} />
             ))}
           </div>

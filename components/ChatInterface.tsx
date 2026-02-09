@@ -13,21 +13,6 @@ interface ChatInterfaceProps {
 
 /**
  * The primary chat interface component for interacting with the Atlas agents.
- * 
- * Features include:
- * - Real-time agent activity visualization.
- * - Markdown rendering for complex code outputs and documentation.
- * - Context-aware quick actions (Refactor/Generate).
- * - Automatic scrolling to latest messages.
- * - One-click code copying for generated snippets.
- *
- * @component
- * @param {Object} props
- * @param {Message[]} props.messages - The conversation history.
- * @param {(text: string) => void} props.onSendMessage - Callback for user message submission.
- * @param {boolean} props.isThinking - Whether the orchestrator is currently processing.
- * @param {AgentType[]} props.activeAgents - List of agents currently active in the sequence.
- * @param {boolean} props.hasActiveFile - State flag to show file-specific quick actions.
  */
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMessage, isThinking, activeAgents, hasActiveFile }) => {
   const [input, setInput] = useState('');
@@ -41,7 +26,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
 
   /**
    * Handles the local input form submission and triggers the global message handler.
-   * @param {React.FormEvent} e
    */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +37,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
 
   /**
    * Utility function to copy code snippet content to the system clipboard.
-   * @param {string} text - The raw code string to copy.
    */
   const handleCopyCode = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -103,6 +86,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
             </div>
             
             <div className="grid grid-cols-1 gap-2 w-full px-4">
+               <button 
+                onClick={() => onSendMessage("Perform a deep architectural audit of the codebase structure. Identify layers, patterns, and data flows.")}
+                className="group text-[10px] bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 p-3 rounded-lg text-left text-cyan-200 transition-all flex items-center gap-3"
+               >
+                 <span className="text-lg group-hover:scale-110 transition-transform">🔍</span>
+                 <div>
+                    <div className="font-bold">Architectural Deep Dive</div>
+                    <div className="opacity-60 text-[9px]">Map layers, patterns, and data dependencies</div>
+                 </div>
+               </button>
+
                {hasActiveFile && (
                  <button 
                   onClick={() => onSendMessage("Suggest refactoring for the current file focusing on readability: improve variable names, simplify conditional logic (use guard clauses), identify methods to extract, and add descriptive comments.")}
@@ -124,17 +118,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, onSendMe
                  <div>
                     <div className="font-bold">Generate Feature</div>
                     <div className="opacity-60 text-[9px]">Architectural code synthesis with Generator Agent</div>
-                 </div>
-               </button>
-
-               <button 
-                onClick={() => onSendMessage("Explain the overall architecture and how data flows through the ingestion layer.")}
-                className="group text-[10px] bg-slate-800/50 hover:bg-slate-800 border border-slate-700 p-3 rounded-lg text-left text-slate-300 transition-all flex items-center gap-3"
-               >
-                 <span className="text-lg group-hover:scale-110 transition-transform">🔍</span>
-                 <div>
-                    <div className="font-bold">Analyze Architecture</div>
-                    <div className="opacity-60 text-[9px]">Understand patterns and dependencies</div>
                  </div>
                </button>
             </div>

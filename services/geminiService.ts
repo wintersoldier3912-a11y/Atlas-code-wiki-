@@ -59,15 +59,15 @@ export const generateAtlasResponseStream = async (
  * This returns a structured JSON object for the UI to consume.
  */
 export const analyzeGithubRepo = async (repoUrl: string) => {
-  const prompt = `Analyze this GitHub repository URL: ${repoUrl}. 
-  Act as an Explorer and Architect agent. Provide a likely directory structure (top-level and 1-level deep) 
-  and a high-level architectural summary. 
+  const prompt = `Perform a deep architectural audit and structure prediction for the following GitHub repository: ${repoUrl}. 
   
-  Focus on identifying:
-  - Main technology stack (languages/frameworks).
-  - Core directory structure.
-  - Primary architectural patterns (e.g., MVC, Layered, Microservices).
-  - Important entry points.`;
+  As the Atlas Architect and Explorer agents, you must:
+  1. Identify the likely tech stack (core languages, frameworks, and libraries).
+  2. Synthesize a high-level architectural overview (e.g., Clean Architecture, Micro-frontends, Layered Mono-repo).
+  3. Predict the most important top-level directories and their significant immediate children (1 level deep).
+  4. Highlight the primary entry points and critical business logic locations.
+  
+  Return the analysis in a clean JSON format.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -79,7 +79,7 @@ export const analyzeGithubRepo = async (repoUrl: string) => {
           type: Type.OBJECT,
           properties: {
             repoName: { type: Type.STRING },
-            summary: { type: Type.STRING },
+            summary: { type: Type.STRING, description: 'Markdown formatted architectural summary' },
             stack: { type: Type.ARRAY, items: { type: Type.STRING } },
             structure: {
               type: Type.ARRAY,
