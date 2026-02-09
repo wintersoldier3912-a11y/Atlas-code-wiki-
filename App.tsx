@@ -8,36 +8,51 @@ import { GithubImportModal } from './components/GithubImportModal';
 import { generateAtlasResponseStream, analyzeGithubRepo } from './services/geminiService';
 
 /**
- * Maps a natural language user query to a sequence of specialized agents.
+ * Maps a natural language user query to a sequence of specialized agents based on defined protocols.
+ * Protocols:
+ * - Code Generation: Architect -> Generator -> Security
+ * - Refactoring: Explorer -> Refactorer -> Architect
+ * - Architectural Audit: Explorer -> Architect -> Explainer
+ * - Impact Analysis: Explorer -> ChangeImpact -> Security
  */
 const getAgentWorkflow = (query: string): AgentType[] => {
   const normalizedQuery = query.toLowerCase();
   
-  const workflowDefinitions: Record<string, AgentType[]> = {
-    generate: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    create: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    write: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    build: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    implement: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    setup: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY],
-    refactor: [AgentType.REFACTORER, AgentType.ARCHITECT],
-    optimize: [AgentType.REFACTORER, AgentType.ARCHITECT],
-    improve: [AgentType.REFACTORER, AgentType.ARCHITECT],
-    readability: [AgentType.REFACTORER, AgentType.ARCHITECT],
-    explain: [AgentType.EXPLAINER],
-    impact: [AgentType.CHANGE_IMPACT, AgentType.SECURITY, AgentType.ARCHITECT],
-    change: [AgentType.CHANGE_IMPACT, AgentType.SECURITY, AgentType.ARCHITECT],
-    architecture: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
-    structure: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
-    overview: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER],
-    audit: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.SECURITY, AgentType.EXPLAINER],
-  };
+  // Define agent pipeline logic based on intent triggers
+  const intentMap: Array<{ triggers: string[], workflow: AgentType[] }> = [
+    {
+      // Protocol: Architect -> Generator -> Security
+      triggers: ['generate', 'create', 'build', 'synthesize', 'write', 'implement', 'setup', 'new module'],
+      workflow: [AgentType.ARCHITECT, AgentType.GENERATOR, AgentType.SECURITY]
+    },
+    {
+      // Protocol: Explorer -> Refactorer -> Architect
+      triggers: ['refactor', 'optimize', 'improve', 'clean', 'simplify', 'readability', 'restructure'],
+      workflow: [AgentType.EXPLORER, AgentType.REFACTORER, AgentType.ARCHITECT]
+    },
+    {
+      // Protocol: Explorer -> ChangeImpact -> Security
+      triggers: ['impact', 'change', 'blast radius', 'predict', 'consequence'],
+      workflow: [AgentType.EXPLORER, AgentType.CHANGE_IMPACT, AgentType.SECURITY]
+    },
+    {
+      // Protocol: Explorer -> Architect -> Explainer
+      triggers: ['architecture', 'structure', 'overview', 'audit', 'design', 'layers'],
+      workflow: [AgentType.EXPLORER, AgentType.ARCHITECT, AgentType.EXPLAINER]
+    },
+    {
+      // Simple Explanation: Explorer -> Explainer
+      triggers: ['explain', 'describe', 'what is', 'how does', 'tell me about'],
+      workflow: [AgentType.EXPLORER, AgentType.EXPLAINER]
+    }
+  ];
 
-  for (const [trigger, agents] of Object.entries(workflowDefinitions)) {
-    if (normalizedQuery.includes(trigger)) return agents;
+  for (const { triggers, workflow } of intentMap) {
+    if (triggers.some(t => normalizedQuery.includes(t))) return workflow;
   }
   
-  return [AgentType.EXPLORER];
+  // Default fallback to basic exploration
+  return [AgentType.EXPLORER, AgentType.EXPLAINER];
 };
 
 /**
@@ -77,13 +92,14 @@ const App: React.FC = () => {
       activeAgents: [AgentType.ATLAS]
     }));
 
+    // Visually cycle through agents based on the determined workflow
     workflow.forEach((agent, index) => {
       setTimeout(() => {
         setState(prev => ({
           ...prev,
           activeAgents: Array.from(new Set([...prev.activeAgents, agent]))
         }));
-      }, (index + 1) * 600);
+      }, (index + 1) * 700);
     });
 
     const assistantId = (Date.now() + 1).toString();
@@ -105,7 +121,7 @@ const App: React.FC = () => {
       : "";
     
     // Provide general repo structure context for architecture queries
-    const repoContext = userInput.toLowerCase().match(/architecture|structure|overview|audit/)
+    const repoContext = userInput.toLowerCase().match(/architecture|structure|overview|audit|design/)
       ? `Full Project Structure:\n${JSON.stringify(state.repoStructure, (k, v) => k === 'content' ? undefined : v, 2)}\n\n`
       : "";
 
@@ -196,16 +212,22 @@ const App: React.FC = () => {
 
   const handleFileSelect = (file: FileNode) => setState(prev => ({ ...prev, currentFile: file }));
 
+  /**
+   * Specialized trigger for the Refactorer agent on the active file.
+   */
   const triggerRefactor = () => {
     if (state.currentFile && !state.isThinking) {
-      handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure. focusing on readability: improve variable names, simplify conditional logic (use guard clauses), identify methods to extract, and add descriptive comments.`);
+      handleSendMessage(`Refactor \`${state.currentFile.path}\` for optimized readability and structure. Identify specific anti-patterns, apply guard clauses, and decompose complex logic into extractable helper functions.`);
     }
   };
 
+  /**
+   * Specialized trigger for the Generator agent via the synthesis modal.
+   */
   const handleGeneratorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (generatorInput.trim()) {
-      handleSendMessage(`Generator Agent Request: ${generatorInput}. Please generate a robust implementation following architectural patterns, including comprehensive docstrings, strict type safety, and clear integration steps.`);
+      handleSendMessage(`Synthesize New Module: ${generatorInput}. Please follow strict architectural protocols: define interfaces, implement the logic with production-ready patterns, and provide a comprehensive integration guide.`);
       setGeneratorInput("");
       setIsGeneratorOpen(false);
     }
