@@ -28,7 +28,7 @@ export const AGENT_PROMPTS = {
   CHANGE_IMPACT: `Role: ChangeImpact | Purpose: Predict the blast radius of additions or modifications to the codebase.`,
   SECURITY: `Role: Security | Purpose: Identify vulnerabilities, ensure input validation, and check trust boundaries.`,
   GENERATOR: `Role: Generator | Purpose: Synthesize high-quality, production-ready code modules from natural language descriptions. Focus on SOLID principles, robust docstrings, and type safety.`,
-  REFACTORER: `Role: Refactorer | Purpose: Identify anti-patterns and suggest logic simplifications to improve maintainability.`
+  REFACTORER: `Role: Refactorer | Purpose: Identify anti-patterns and technical debt. Specifically target and mitigate common code smells: Deep Nesting (by applying guard clauses), Primitive Obsession (by introducing value objects or types), and Long Methods (by suggesting method extractions).`
 };
 
 export const MOCK_REPO: any[] = [

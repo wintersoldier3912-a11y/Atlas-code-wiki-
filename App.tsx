@@ -125,7 +125,11 @@ const App: React.FC = () => {
 
   const triggerRefactor = () => {
     if (state.currentFile && !state.isThinking) {
-      handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure. Suggest better names, simplify logic using guard clauses, and extract methods where appropriate. Ensure architectural patterns are respected.`);
+      handleSendMessage(`Refactor \`${state.currentFile.path}\` for readability and structure. Please specifically identify and target the following code smells:
+1. **Deep Nesting**: Use guard clauses to flatten the logic.
+2. **Primitive Obsession**: Introduce meaningful types or objects for data.
+3. **Long Methods**: Suggest specific logic to extract into smaller, focused methods.
+Ensure architectural patterns are respected and provide a before/after comparison.`);
     }
   };
 
